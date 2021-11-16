@@ -142,6 +142,7 @@
     <ClInclude Include="gx.glsl.h" />
     <ClInclude Include="gx.h" />
     <ClInclude Include="sokol_app.h" />
+    <ClInclude Include="sokol_debugtext.h" />
     <ClInclude Include="sokol_gfx.h" />
     <ClInclude Include="sokol_glue.h" />
     <ClInclude Include="sokol_time.h" />
