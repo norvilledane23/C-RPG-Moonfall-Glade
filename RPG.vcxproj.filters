@@ -39,9 +39,12 @@
     <ClInclude Include="sokol_debugtext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inventory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="RPG.c">
+    <ClCompile Include="rpg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

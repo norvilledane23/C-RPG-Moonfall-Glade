@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="gx.glsl.h" />
     <ClInclude Include="gx.h" />
+    <ClInclude Include="inventory.h" />
     <ClInclude Include="sokol_app.h" />
     <ClInclude Include="sokol_debugtext.h" />
     <ClInclude Include="sokol_gfx.h" />
@@ -149,7 +150,7 @@
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="RPG.c" />
+    <ClCompile Include="rpg.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
