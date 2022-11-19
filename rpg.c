@@ -39,20 +39,22 @@
 #include "gx.h"
 #include "sokol_time.h"
 #include "sokol_debugtext.h"
-#include "inventory.h"
 
-#define INV_SIZE 8
-#define	WORLD_SIZE 20
-#define STACK_LIMIT 30
+// Headers by me
+#include "inventory.h"
+#include "game_math.h"
 
 struct container {
     item container_items[8];
     int container_id;
     float x;
     float y;
-    float z; // Displacement value from player
     bool open;
 };
+
+#define INV_SIZE 8
+#define	WORLD_SIZE 20
+#define STACK_LIMIT 30
 
 item world_items[WORLD_SIZE];
 item inv_items[INV_SIZE];
@@ -64,7 +66,6 @@ bool inv_bar_empty = true;
 int i;
 int gameplay_state = 0; // Default state: no menus open (0)
 int pressed = 0;
-int inv_slot = 0;
 int selected_item = 0;
 int show_item_obtained_msg_timer = -1; // Counter for how long item obtained message is displayed
 char* item_obtained_name = ""; // Name of world item that was picked up
@@ -72,16 +73,8 @@ float mouse_x;
 float mouse_y;
 float target_x = 20;
 float target_y = 20;
-float ball_x = 24;
-float ball_y = 60;
-float torch_x;
-float torch_y;
-
-float crafting1_mouse_z; // Displacement (actual distance) between cursor and crafting slot 1
-float crafting2_mouse_z; // Displacement (actual distance) between cursor and crafting slot 2
-float crafting3_mouse_z; // Displacement (actual distance) between cursor and crafting slot 3
-float crafting4_mouse_z; // Displacement (actual distance) between cursor and crafting slot 4
-float crafting_output_mouse_z; // Displacement (actual distance) between cursor and crafting output slot
+float player_x = 24;
+float player_y = 60;
 
 // UI sprites
 gx_sprite cursor;
@@ -97,6 +90,8 @@ gx_sprite stick;
 gx_sprite torch;
 gx_sprite mint;
 gx_sprite chest;
+
+gx_sprite item_sprites[20];
 
 uint64_t frame_start_time;
 
@@ -143,8 +138,13 @@ void init(void) {
     crafting_menu = gx_make_sprite("craftingmenu.png");
     chest = gx_make_sprite("chest.png");
 
-    stick.height = 40;
-    stick.width = 40;
+    item_sprites[0] = coal;
+    item_sprites[1] = stick;
+    item_sprites[2] = torch;
+    item_sprites[3] = mint;
+   
+    item_sprites[1].height = 40;
+    item_sprites[1].width = 40;
 
     // Setting containers, container contents and coordinates
     world_containers[0].container_id = 0;
@@ -206,27 +206,8 @@ void frame(void) {
     }
 
     frame_start_time = stm_now(); // Current time is the new start time of the next frame
-    
-    // Checking for empty inventory slot for various uses (i.e. returning unused crafting items, picking up new world items)
-    for (i = 0; i < 8; i++) {
-        if (inv_items[i].item_id == 0) {
-            inv_slot = i;
-            break;
-        }
-    }
-    
-    // Inventory bar mouse interactions
-    for (i = 0; i < 8; i++) {
-        // Calculating inventory items and cursor displacement
-        inv_items[i].z = sqrtf(pow((mouse_x - inv_items[i].x), 2) + pow((mouse_y - inv_items[i].y), 2));
-    }
 
-    if (gameplay_state == 1) { // Crafting menu is opened
-        for (i = 0; i < 5; i++) {
-            // Calculating crafting items and cursor displacement
-            crafting_items[i].z = sqrtf(pow((mouse_x - crafting_items[i].x), 2) + pow((mouse_y - crafting_items[i].y), 2));
-        }
-
+    if (gameplay_state == 1) {
         // Crafting recipes
         // Torch recipe
         if ((crafting_items[0].item_id == 1 && crafting_items[2].item_id == 2) || (crafting_items[1].item_id == 1 && crafting_items[3].item_id == 2)) {
@@ -236,122 +217,66 @@ void frame(void) {
 
     else { // When no menus are open and dialogue scenes are active
         // Player movement
-        if (pressed == 1 && ball_x < target_x) { // right
-            ball_x += 8;
+        if (pressed == 1 && player_x < target_x) { // right
+            player_x += 8;
         }
-        else if (pressed == 2 && ball_x > target_x) { // left
-            ball_x -= 8;
+        else if (pressed == 2 && player_x > target_x) { // left
+            player_x -= 8;
         }
-        else if (pressed == 3 && ball_y < target_y) { // down
-            ball_y += 8;
+        else if (pressed == 3 && player_y < target_y) { // down
+            player_y += 8;
         }
-        else if (pressed == 4 && ball_y > target_y) { // up
-            ball_y -= 8;
+        else if (pressed == 4 && player_y > target_y) { // up
+            player_y -= 8;
         }
 
         // Picking up world items
-        for (i = 0; i < 20; i++) {
-            if (world_items[i].item_id != 0) {
-                // Calculating world items and player displacement
-                world_items[i].z = sqrtf(pow((ball_x - world_items[i].x),2) + pow((ball_y - world_items[i].y), 2));
+        for (i = 0; i < WORLD_SIZE; i++) {
+            // Distance check
+            if (distance(player_x, world_items[i].x, player_y, world_items[i].y) < 24) {
+                int existing_slot = item_check(inv_items, world_items[i].item_id);
 
-                // Distance check
-                if (world_items[i].z < 24 && inv_slot < 8) {
-                    if (inv_item_stack(inv_items, world_items[i].item_id) == -1) {
-                        inv_items[inv_slot].item_id = world_items[i].item_id;
-                        inv_items[inv_slot].amount = 1;
-                        world_items[i].item_id = 0;
-                        show_item_obtained_msg_timer = 0;
-                        item_obtained_name = world_items[i].name;
-                    }
+                if (existing_slot == -1) {
+                    int slot = empty_slot(inv_items);
+                    int *picked_up_item;
+                    picked_up_item = &world_items[i].item_id;
 
-                    else {
-                        int matched_slot = inv_item_stack(inv_items, world_items[i].item_id);
+                    inv_items[slot] = add_inv(inv_items[slot], world_items[i], picked_up_item);
+                }
 
-                        inv_items[matched_slot].amount++;
-                        world_items[i].item_id = 0;
-                        show_item_obtained_msg_timer = 0;
-                        item_obtained_name = world_items[i].name;
-                    }
+                else {
+                    inv_items[existing_slot].amount++;
+                    world_items[i].item_id = 0;
                 }
             }
         }
-
-        // Opening a container
-        // Calculating world containers and player displacement
-        world_containers[0].z = sqrtf(pow((ball_x - world_containers[0].x), 2) + pow((ball_y - world_containers[0].y), 2));
     }
     
-    
+    // SPRTIE DRAWING
     // Spawning all sprites
     /* SPAWNING ORDER
         world containers > player > inventory bar > inventory items > world items > text messages > crafting menu/container interface > crafting menu/container items > cursor
     */
-
     gx_begin_drawing();
     gx_draw_rect(0, 0, 800, 600, (sg_color) { .4f, .5f, 1.0f, 1.0f });
 
     // Spawning containers in the world
     gx_draw_sprite(world_containers[0].x - 32, world_containers[0].y - 32, &chest);
 
-    gx_draw_sprite(ball_x - 24, ball_y - 60, &player);
+    gx_draw_sprite(player_x - 24, player_y - 60, &player);
     gx_draw_sprite(198, 546, &inventory_bar);
 
     // Spawning items in inventory bar and the count of items
     for (i = 0; i < 8; i++) {
-        if (inv_items[i].item_id == 1) {
-            gx_draw_sprite(inv_items[i].x - 20, inv_items[i].y - 20, &coal);
-            sdtx_canvas(sapp_width() / 1.6f, sapp_height() / 1.6f);
-            sdtx_origin(16, 45);
-            sdtx_color3b(250, 191, 118);
-            sdtx_printf("%d", inv_items[i].amount);
-        }
-
-        else if (inv_items[i].item_id == 2) {
-            gx_draw_sprite(inv_items[i].x - 20, inv_items[i].y - 20, &stick);
-        }
-
-        else if (inv_items[i].item_id == 3) {
-            gx_draw_sprite(inv_items[i].x - 20, inv_items[i].y - 20, &torch);
-        }
-
-        else if (inv_items[i].item_id == 4) {
-            gx_draw_sprite(inv_items[i].x - 20, inv_items[i].y - 20, &mint);
+        if (inv_items[i].item_id != 0) {
+            gx_draw_sprite(inv_items[i].x - 20, inv_items[i].y - 20, &item_sprites[inv_items[i].item_id-1]);
         }
     }
 
     // Spawning items in the world
     for (i = 0; i < 20; i++) {
-        if (world_items[i].item_id == 1) {
-            gx_draw_sprite(world_items[i].x - 20, world_items[i].y - 20, &coal);
-        }
-
-        else if (world_items[i].item_id == 2) {
-            gx_draw_sprite(world_items[i].x - 20, world_items[i].y - 20, &stick);
-        }
-
-        else if (world_items[i].item_id == 3) {
-            gx_draw_sprite(world_items[i].x - 20, world_items[i].y - 20, &torch);
-        }
-
-        else if (world_items[i].item_id == 4) {
-            gx_draw_sprite(world_items[i].x - 20, world_items[i].y - 20, &mint);
-        }
-    }
-
-    // Displaying new item obtained notification (duration: 48 frames)
-
-    sdtx_canvas(sapp_width() / 1.6f, sapp_height() / 1.6f);
-    sdtx_origin(16, 41);
-    sdtx_color3b(250, 191, 118);
-
-    if (show_item_obtained_msg_timer != -1) {
-        if (show_item_obtained_msg_timer == 48) {
-            show_item_obtained_msg_timer = -1;
-        }
-        else{
-            sdtx_printf("Item obtained: %s", item_obtained_name);
-            show_item_obtained_msg_timer++;
+        if (world_items[i].item_id != 0) {
+            gx_draw_sprite(world_items[i].x - 20, world_items[i].y - 20, &item_sprites[world_items[i].item_id-1]);
         }
     }
 
@@ -361,45 +286,21 @@ void frame(void) {
 
         // Spawning items in crafting menu
         for (i = 0; i < 5; i++) {
-            if (crafting_items[i].item_id == 1) {
-                gx_draw_sprite(crafting_items[i].x - 20, crafting_items[i].y - 20, &coal);
-            }
-
-            else if (crafting_items[i].item_id == 2) {
-                gx_draw_sprite(crafting_items[i].x - 20, crafting_items[i].y - 20, &stick);
-            }
-
-            else if (crafting_items[i].item_id == 3) {
-                gx_draw_sprite(crafting_items[i].x - 20, crafting_items[i].y - 20, &torch);
-            }
-
-            else if (crafting_items[i].item_id == 4) {
-                gx_draw_sprite(crafting_items[i].x - 20, crafting_items[i].y - 20, &mint);
+            if (crafting_items[i].item_id != 0) {
+                gx_draw_sprite(crafting_items[i].x - 20, crafting_items[i].y - 20, &item_sprites[crafting_items[i].item_id-1]);
             }
         }
     }
 
     // Spawning container interface
     if (gameplay_state == 2) {
-        sdtx_origin(16, 33);
+        sdtx_origin(0, 0);
         sdtx_printf("Chest", item_obtained_name);
         gx_draw_sprite(198, 448, &inventory_bar);
 
         // Spawning container items
-        if (world_containers[0].container_items[0].item_id == 1) {
-            gx_draw_sprite(world_containers[0].container_items[0].x - 20, world_containers[0].container_items[0].y - 20, &coal);
-        }
-
-        else if (world_containers[0].container_items[0].item_id == 2) {
-            gx_draw_sprite(world_containers[0].container_items[0].x, world_containers[0].container_items[0].y - 20, &stick);
-        }
-
-        else if (world_containers[0].container_items[0].item_id == 3) {
-            gx_draw_sprite(world_containers[0].container_items[0].x - 20, world_containers[0].container_items[0].y - 20, &torch);
-        }
-
-        else if (world_containers[0].container_items[0].item_id == 4) {
-            gx_draw_sprite(world_containers[0].container_items[0].x - 20, world_containers[0].container_items[0].y - 20, &mint);
+        if (world_containers[0].container_items[0].item_id != 0) {
+            gx_draw_sprite(world_containers[0].container_items[0].x - 20, world_containers[0].container_items[0].y - 20, &item_sprites[world_containers[0].container_items[0].item_id-1]);
         }
     }
 
@@ -408,20 +309,8 @@ void frame(void) {
         gx_draw_sprite(mouse_x, mouse_y, &cursor);
     }
 
-    else if(selected_item == 1) {
-        gx_draw_sprite(mouse_x, mouse_y, &coal);
-    }
-
-    else if (selected_item == 2) {
-        gx_draw_sprite(mouse_x, mouse_y, &stick);
-    }
-
-    else if (selected_item == 3) {
-        gx_draw_sprite(mouse_x, mouse_y, &torch);
-    }
-
     else {
-        gx_draw_sprite(mouse_x, mouse_y, &mint);
+        gx_draw_sprite(mouse_x, mouse_y, &item_sprites[selected_item-1]);
     }
 
     sdtx_draw();
@@ -460,7 +349,7 @@ static void event(const sapp_event* ev) {
                 // Crafting menu mouse interactions
                 for (i = 0; i < 5; i++) {
                     // Distance check
-                    if (crafting_items[i].z < 32) {
+                    if (distance(mouse_x, crafting_items[i].x, mouse_y, crafting_items[i].y) < 32) {
                         // Select items from crafting menu
                         if (selected_item == 0 && crafting_items[i].item_id != 0) {
                             selected_item = crafting_items[i].item_id;
@@ -486,11 +375,8 @@ static void event(const sapp_event* ev) {
 
             else if (gameplay_state == 2) {
                 for (i = 0; i < 8; i++) {
-                    // Calculating container items and cursor displacement
-                    world_containers[0].container_items[i].z = sqrtf(pow((mouse_x - world_containers[0].container_items[i].x), 2) + pow((mouse_y - world_containers[0].container_items[i].y), 2));
-
                     // Distance check
-                    if (world_containers[0].container_items[i].z < 32) {
+                    if (distance(mouse_x, world_containers[0].container_items[i].x, mouse_y, world_containers[0].container_items[i].y) < 32) {
                         // Select items from container
                         if (selected_item == 0 && world_containers[0].container_items[i].item_id != 0) {
                             selected_item = world_containers[0].container_items[i].item_id;
@@ -510,7 +396,7 @@ static void event(const sapp_event* ev) {
             // Inventory bar interactions
             for (i = 0; i < 8; i++) {
                 // Distance check
-                if (inv_items[i].z < 32) {
+                if (distance(mouse_x, inv_items[i].x, mouse_y, inv_items[i].y) < 32) {
                     // Select items from inventory bar
                     if (selected_item == 0 && inv_items[i].item_id != 0) {
                         selected_item = inv_items[i].item_id;
@@ -592,7 +478,7 @@ static void event(const sapp_event* ev) {
                 break;
             }
 
-            if (world_containers[0].z < 48) {
+            if (distance(player_x, world_containers[0].x, player_y, world_containers[0].y) < 48) {
                 gameplay_state = 2;
             }
             break;

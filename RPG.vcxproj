@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="gx.glsl.h" />
     <ClInclude Include="gx.h" />
+    <ClInclude Include="game_math.h" />
     <ClInclude Include="inventory.h" />
     <ClInclude Include="sokol_app.h" />
     <ClInclude Include="sokol_debugtext.h" />

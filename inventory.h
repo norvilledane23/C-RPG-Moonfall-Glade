@@ -1,7 +1,6 @@
 #pragma once
 
 #define INV_SIZE 8
-#define	WORLD_SIZE 20
 #define STACK_LIMIT 30
 
 typedef struct {
@@ -10,16 +9,35 @@ typedef struct {
 	char* name;
 	float x;
 	float y;
-	float z; // Displacement value
 } item;
 
-int inv_item_stack(item inv_items[], int current_w_item_id) {
-
-	for (int j = 0; j < INV_SIZE; j++) {
-		if (inv_items[j].item_id == current_w_item_id) {
-			return j;
+int empty_slot(item inv_items[]) {
+	for (int i = 0; i < INV_SIZE; i++) {
+		if (inv_items[i].item_id == 0) {
+			return i;
 		}
 	}
 
 	return -1;
+}
+
+int item_check(item inv_items[], int world_item_id) {
+	// Check if the picked up item already exists in inventory
+	for (int i = 0; i < INV_SIZE; i++) {
+		if (inv_items[i].item_id == world_item_id) {
+			// Returns index if it does
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+item add_inv(item new_item, item world_item, int *world_item_id) {
+	new_item.item_id = world_item.item_id;
+	new_item.name = world_item.name;
+	new_item.amount = 1;
+	*world_item_id = 0;
+
+	return new_item;
 }
