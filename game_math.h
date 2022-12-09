@@ -1,5 +1,7 @@
 #pragma once
 
+float distance(float x1, float x2, float y1, float y2);
+
 float distance(float x1, float x2, float y1, float y2) {
 	float x, y, z;
 

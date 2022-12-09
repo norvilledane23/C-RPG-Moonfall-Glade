@@ -6,10 +6,14 @@
 typedef struct {
 	int item_id;
 	int amount;
-	char* name;
 	float x;
 	float y;
+	char* name;
 } item;
+
+int empty_slot(item inv_items[]);
+int item_check(item inv_items[], int world_item_id);
+item add_inv(item new_item, item world_item, int* world_item_id);
 
 int empty_slot(item inv_items[]) {
 	for (int i = 0; i < INV_SIZE; i++) {
@@ -35,7 +39,6 @@ int item_check(item inv_items[], int world_item_id) {
 
 item add_inv(item new_item, item world_item, int *world_item_id) {
 	new_item.item_id = world_item.item_id;
-	new_item.name = world_item.name;
 	new_item.amount = 1;
 	*world_item_id = 0;
 
