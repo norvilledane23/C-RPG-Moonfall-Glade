@@ -45,6 +45,9 @@
     <ClInclude Include="game_math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="brewing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rpg.c">

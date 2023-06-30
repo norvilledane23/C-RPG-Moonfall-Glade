@@ -1,3 +1,5 @@
+// Student Name: Norville Amao
+
 #pragma once
 
 #define INV_SIZE 8
@@ -9,11 +11,12 @@ typedef struct {
 	float x;
 	float y;
 	char* name;
+	gx_sprite sprite;
 } item;
 
 int empty_slot(item inv_items[]);
 int item_check(item inv_items[], int world_item_id);
-item add_inv(item new_item, item world_item, int* world_item_id);
+item add_inv(float inv_x, float inv_y, item new_item, item old_item, item *world_item);
 
 int empty_slot(item inv_items[]) {
 	for (int i = 0; i < INV_SIZE; i++) {
@@ -37,10 +40,14 @@ int item_check(item inv_items[], int world_item_id) {
 	return -1;
 }
 
-item add_inv(item new_item, item world_item, int *world_item_id) {
-	new_item.item_id = world_item.item_id;
+item add_inv(float inv_x, float inv_y, item new_item, item old_item, item *old_item_ptr) {
+	old_item.x = inv_x;
+	old_item.y = inv_y;
+	new_item = old_item;
+
 	new_item.amount = 1;
-	*world_item_id = 0;
+	old_item_ptr->item_id = 0;
+	old_item_ptr->sprite = gx_make_sprite("");
 
 	return new_item;
 }
